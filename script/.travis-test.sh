@@ -47,6 +47,16 @@ expect_br_equal() {
   fi
 }
 
+expect_gz_equal() {
+  expected=$1
+  actual_gz=$2
+  if gzip -dfk ./${actual_gz}.gz; then
+    expect_equal $expected $actual_gz
+  else
+    add_result "FAIL (decompression)"
+  fi
+}
+
 ################################################################################
 
 # Start default server.
