@@ -43,10 +43,8 @@ jobs:
             build_system: cmake
             c_compiler: gcc-14
             cxx_compiler: g++-14
-            extra_apt_pkgs: gcc-14 g++-14
+            extra_apt_pkgs: gcc-14 g++-14 libbrotli-dev
             os: ubuntu-24.04
-            extra_apt_pkgs: >
-              gcc-14 g++-14  libbrotli-dev
             
     env:
       CC: ${{ matrix.c_compiler || 'gcc' }}
