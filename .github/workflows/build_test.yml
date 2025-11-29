@@ -14,20 +14,6 @@ jobs:
     strategy:
       matrix: 
         include:
-          - name: cmake:gcc7:ubuntu.20.04
-            build_system: cmake
-            c_compiler: gcc-7
-            cxx_compiler: g++-7
-            extra_apt_pkgs: gcc-7 g++-7
-            os: ubuntu-20.04
-            
-          - name: cmake:gcc8:ubuntu.20.04
-            build_system: cmake
-            c_compiler: gcc-8
-            cxx_compiler: g++-8
-            extra_apt_pkgs: gcc-8 g++-8
-            os: ubuntu-20.04
-            
           - name: cmake:gcc9:ubuntu.22.04
             build_system: cmake
             c_compiler: gcc-9
@@ -52,13 +38,14 @@ jobs:
             cxx_compiler: g++-12
             extra_apt_pkgs: gcc-12 g++-12
             os: ubuntu-22.04
-            
-          - name: cmake:gcc14:ubuntu.25.10
+
+          - name: cmake:gcc14:ubuntu.24.04
             build_system: cmake
             c_compiler: gcc-14
             cxx_compiler: g++-14
             extra_apt_pkgs: gcc-14 g++-14
-            os: ubuntu-25.10
+            os: ubuntu-24.04
+            
     env:
       CC: ${{ matrix.c_compiler || 'gcc' }}
       CXX: ${{ matrix.cxx_compiler || 'gcc' }}
