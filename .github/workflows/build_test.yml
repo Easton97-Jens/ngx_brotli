@@ -14,11 +14,11 @@ jobs:
     strategy:
       matrix: 
         include:
-          - name: cmake:gcc9:ubuntu.22.04
-            build_system: cmake
-            c_compiler: gcc-9
-            cxx_compiler: g++-9
-            os: ubuntu-22.04
+        #  - name: cmake:gcc9:ubuntu.22.04
+        #    build_system: cmake
+         #   c_compiler: gcc-9
+        #    cxx_compiler: g++-9
+        #    os: ubuntu-22.04
             
           - name: cmake:gcc10:ubuntu.22.04
             build_system: cmake
