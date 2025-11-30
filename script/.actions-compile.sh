@@ -32,7 +32,6 @@ cd $ROOT/nginx
     --with-http_sub_module \
     --with-http_stub_status_module \
     --with-libatomic \
-    --with-http_perl_module \
     --with-http_degradation_module \
     --with-stream_geoip_module \
     --with-http_geoip_module  \
