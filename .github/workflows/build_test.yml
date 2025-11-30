@@ -55,7 +55,7 @@ jobs:
       run: |
         EXTRA_PACKAGES="${{ matrix.extra_apt_pkgs || '' }}"
         sudo apt update
-        sudo apt install -y ${EXTRA_PACKAGES}
+        sudo apt install -y ${EXTRA_PACKAGES} ca-certificates build-essential patch cmake git libtool autoconf automake perl bash libldap2-dev libsasl2-dev libzstd-dev libatomic-ops-dev zlib1g-dev libluajit-5.1-dev libpcre2-dev libyajl-dev libxml2-dev libxslt1-dev libcurl4-openssl-dev liblmdb-dev libfuzzy-dev lua5.1 lua5.3 liblua5.3-dev libgeoip-dev libmaxminddb-dev python3 libcjson-dev uthash-dev rustup libgd-dev g++ apt-utils pkgconf doxygen wget libgd-dev valgrind libc-ares-dev libperl-dev flex bison libsodium23 libsodium-dev clang lld 
     - name: Checkout the source
       uses: actions/checkout@v6
       with:
