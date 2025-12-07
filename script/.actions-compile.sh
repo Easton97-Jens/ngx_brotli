@@ -14,6 +14,8 @@ cd $ROOT/nginx
 # Pro memoria: --with-debug
 ./auto/configure \
     --prefix=$ROOT/script/test \
+    --with-cc-opt=" -O2 -fstack-protector-strong -fstack-clash-protection -fPIE -D_FORTIFY_SOURCE=3 -Wformat -Wformat-security -Werror=format-security -Wno-sign-compare -fno-plt" \
+    --with-ld-opt=" -fuse-ld=lld -pie -m64 -Wl,-O1 -Wl,--gc-sections -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -Wl,--as-needed -Wl,--no-copy-dt-needed-entries  -Wl,-z,nodlopen -Wl,-z,pack-relative-relocs -Wl,--sort-common -Wl,-z,defs -Wl,-s" \
     --with-compat \
     --with-file-aio \
     --with-pcre-jit \
