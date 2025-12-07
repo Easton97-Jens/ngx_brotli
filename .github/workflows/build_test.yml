@@ -26,18 +26,18 @@ jobs:
         #    cxx_compiler: g++-10
           #  os: ubuntu-22.04
             
-        #  - name: cmake:gcc11:ubuntu.22.04
-        #    build_system: cmake
-          #  c_compiler: gcc-11
-          #  cxx_compiler: g++-11
-          #  os: ubuntu-22.04
+          - name: cmake:gcc11:ubuntu.22.04
+            build_system: cmake
+            c_compiler: gcc-11
+            cxx_compiler: g++-11
+            os: ubuntu-22.04
             
-       #   - name: cmake:gcc12:ubuntu.22.04
-        #    build_system: cmake
-         #   c_compiler: gcc-12
-          #  cxx_compiler: g++-12
-         #   extra_apt_pkgs: gcc-12 g++-12
-         #   os: ubuntu-22.04
+          - name: cmake:gcc12:ubuntu.22.04
+            build_system: cmake
+            c_compiler: gcc-12
+            cxx_compiler: g++-12
+            extra_apt_pkgs: gcc-12 g++-12
+            os: ubuntu-22.04
 
           - name: cmake:gcc14:ubuntu.24.04
             build_system: cmake
