@@ -66,8 +66,8 @@ BROTLI_ENC_H="$brotli/include/brotli/encode.h \
 ngx_module_incs="$brotli/include"
 ngx_module_deps="$BROTLI_ENC_H"
 ngx_module_srcs="$BROTLI_MODULE_SRC_DIR/ngx_http_brotli_filter_module.c"
-#ngx_module_libs="-L$BROTLI_OUTPUT_DIRECTORY -lbrotlienc -lbrotlicommon -lm"
-ngx_module_libs="-Wl,--whole-archive $BROTLI_OUTPUT_DIRECTORY/libbrotlienc.a $BROTLI_OUTPUT_DIRECTORY/libbrotlicommon.a -Wl,--no-whole-archive -lm"
+ngx_module_libs="-L$BROTLI_OUTPUT_DIRECTORY -lbrotlienc -lbrotlicommon -lm"
+#ngx_module_libs="-Wl,--whole-archive $BROTLI_OUTPUT_DIRECTORY/libbrotlienc.a $BROTLI_OUTPUT_DIRECTORY/libbrotlicommon.a -Wl,--no-whole-archive -lm"
 ngx_module_order="$ngx_module_name \
                   ngx_pagespeed \
                   ngx_http_postpone_filter_module \
