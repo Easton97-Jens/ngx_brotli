@@ -1,0 +1,61 @@
+name: CodeQL
+
+on:
+  push:
+    branches: ["master", "main"]
+  pull_request:
+    branches: ["master", "main"]
+  schedule:
+    - cron: "19 3 * * 1"
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: CodeQL (C/C++)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: c-cpp
+          build-mode: manual
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake perl \
+            zlib1g-dev libpcre3-dev libssl-dev \
+            curl ca-certificates
+
+      - name: Build brotli deps (from submodule)
+        run: |
+          cd deps/brotli
+          mkdir -p out && cd out
+          cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+                -DCMAKE_INSTALL_PREFIX="$PWD/installed" ..
+          cmake --build . --config Release --target brotlienc
+
+      - name: Download and build nginx 1.29.4 with ngx_brotli (dynamic module)
+        env:
+          NGINX_VERSION: "1.29.4"
+        run: |
+          curl -fsSL "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" -o nginx.tar.gz
+          tar -xzf nginx.tar.gz
+          cd "nginx-${NGINX_VERSION}"
+
+          ./configure --with-compat --add-dynamic-module="${GITHUB_WORKSPACE}"
+          make modules
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
