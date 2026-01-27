@@ -308,6 +308,7 @@ static void* create_conf(ngx_conf_t* root_cfg) {
 static char* merge_conf(ngx_conf_t* root_cfg, void* parent, void* child) {
   configuration_t* prev = parent;
   configuration_t* cfg = child;
+  (void)root_cfg;
   ngx_conf_merge_uint_value(cfg->enable, prev->enable,
                             NGX_HTTP_BROTLI_STATIC_OFF);
   return NGX_CONF_OK;

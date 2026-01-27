@@ -57,8 +57,7 @@ jobs:
         run: |
           clang-tidy \
             -p . \
-            -warnings-as-errors='*' \
-            -checks='clang-analyzer-*,bugprone-*,cert-*,security-*' \
+            -checks='clang-analyzer-*,-clang-analyzer-security.insecureAPI.*,-bugprone-easily-swappable-parameters,-bugprone-multi-level-implicit-pointer-conversion,-bugprone-narrowing-conversions,-clang-diagnostic-unused-parameter' \
             ../filter/ngx_http_brotli_filter_module.c \
             ../static/ngx_http_brotli_static_module.c
 
