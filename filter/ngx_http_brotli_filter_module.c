@@ -666,6 +666,8 @@ static ngx_int_t ngx_http_brotli_ratio_variable(ngx_http_request_t* r,
   ngx_uint_t ratio_frac;
   ngx_http_brotli_ctx_t* ctx;
 
+  (void)data;
+
   v->valid = 1;
   v->no_cacheable = 0;
   v->not_found = 0;
@@ -746,6 +748,8 @@ static char* ngx_http_brotli_merge_conf(ngx_conf_t* cf, void* parent,
 
 /* Prepend to filter chain. */
 static ngx_int_t ngx_http_brotli_filter_init(ngx_conf_t* cf) {
+  (void)cf;
+
   ngx_http_next_header_filter = ngx_http_top_header_filter;
   ngx_http_top_header_filter = ngx_http_brotli_header_filter;
 
@@ -761,6 +765,9 @@ static char* ngx_http_brotli_parse_wbits(ngx_conf_t* cf, void* post,
   size_t* parameter = data;
   size_t bits;
   size_t wsize;
+
+  (void)cf;
+  (void)post;
 
   for (bits = BROTLI_MIN_WINDOW_BITS; bits <= BROTLI_MAX_WINDOW_BITS; bits++) {
     wsize = 1u << bits;

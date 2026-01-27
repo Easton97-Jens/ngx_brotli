@@ -1,0 +1,93 @@
+name: CI Static Analysis
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  static-analysis:
+    runs-on: ubuntu-24.04
+    env:
+      NGINX_VERSION: 1.27.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install analysis dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bear \
+            build-essential \
+            ca-certificates \
+            clang \
+            clang-tidy \
+            cppcheck \
+            curl \
+            libbrotli-dev \
+            libpcre2-dev \
+            libssl-dev \
+            pkg-config \
+            zlib1g-dev
+
+      - name: Download NGINX
+        run: |
+          curl -fsSLO "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"
+          tar -xzf "nginx-${NGINX_VERSION}.tar.gz"
+
+      - name: Configure NGINX with ngx_brotli
+        working-directory: nginx-${{ env.NGINX_VERSION }}
+        run: |
+          ./configure \
+            --with-compat \
+            --add-dynamic-module="${GITHUB_WORKSPACE}" \
+            --with-cc-opt="-Wall -Wextra -Werror"
+
+      - name: Build with compilation database
+        working-directory: nginx-${{ env.NGINX_VERSION }}
+        run: |
+          bear -- make modules
+
+      - name: Run clang-tidy (security-focused)
+        working-directory: nginx-${{ env.NGINX_VERSION }}
+        run: |
+          clang-tidy \
+            -p . \
+            -checks='clang-analyzer-*,-clang-analyzer-security.insecureAPI.*,-bugprone-easily-swappable-parameters,-bugprone-multi-level-implicit-pointer-conversion,-bugprone-narrowing-conversions,-clang-diagnostic-unused-parameter' \
+            ../filter/ngx_http_brotli_filter_module.c \
+            ../static/ngx_http_brotli_static_module.c
+
+      - name: Run cppcheck (defects only)
+        run: |
+          cppcheck \
+            --enable=warning,performance,portability \
+            --error-exitcode=1 \
+            --inline-suppr \
+            --quiet \
+            --suppress=missingIncludeSystem \
+            -I "nginx-${NGINX_VERSION}/src/core" \
+            -I "nginx-${NGINX_VERSION}/src/event" \
+            -I "nginx-${NGINX_VERSION}/src/http" \
+            -I "nginx-${NGINX_VERSION}/src/os/unix" \
+            -I "nginx-${NGINX_VERSION}/objs" \
+            "${GITHUB_WORKSPACE}/filter" \
+            "${GITHUB_WORKSPACE}/static"
+
+      - name: Run cppcheck (style/info)
+        run: |
+          cppcheck \
+            --enable=style,information \
+            --inline-suppr \
+            --quiet \
+            --suppress=missingIncludeSystem \
+            -I "nginx-${NGINX_VERSION}/src/core" \
+            -I "nginx-${NGINX_VERSION}/src/event" \
+            -I "nginx-${NGINX_VERSION}/src/http" \
+            -I "nginx-${NGINX_VERSION}/src/os/unix" \
+            -I "nginx-${NGINX_VERSION}/objs" \
+            "${GITHUB_WORKSPACE}/filter" \
+            "${GITHUB_WORKSPACE}/static"
