@@ -61,10 +61,10 @@ jobs:
             ../filter/ngx_http_brotli_filter_module.c \
             ../static/ngx_http_brotli_static_module.c
 
-      - name: Run cppcheck (CERT addon)
+      - name: Run cppcheck (defects only)
         run: |
           cppcheck \
-            --enable=warning,style,performance,portability \
+            --enable=warning,performance,portability \
             --error-exitcode=1 \
             --inline-suppr \
             --quiet \
@@ -74,5 +74,20 @@ jobs:
             -I "nginx-${NGINX_VERSION}/src/http" \
             -I "nginx-${NGINX_VERSION}/src/os/unix" \
             -I "nginx-${NGINX_VERSION}/objs" \
-            filter/ \
-            static/
+            "${GITHUB_WORKSPACE}/filter" \
+            "${GITHUB_WORKSPACE}/static"
+
+      - name: Run cppcheck (style/info)
+        run: |
+          cppcheck \
+            --enable=style,information \
+            --inline-suppr \
+            --quiet \
+            --suppress=missingIncludeSystem \
+            -I "nginx-${NGINX_VERSION}/src/core" \
+            -I "nginx-${NGINX_VERSION}/src/event" \
+            -I "nginx-${NGINX_VERSION}/src/http" \
+            -I "nginx-${NGINX_VERSION}/src/os/unix" \
+            -I "nginx-${NGINX_VERSION}/objs" \
+            "${GITHUB_WORKSPACE}/filter" \
+            "${GITHUB_WORKSPACE}/static"
