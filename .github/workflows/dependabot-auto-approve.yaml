@@ -2,8 +2,9 @@ name: Dependabot Auto-Approve
 on: pull_request
 
 permissions:
-  pull-requests: write
-  contents: write
+  contents: read
+  issues: write
+  pull-requests: read
 
 jobs:
   auto-approve:
@@ -15,13 +16,24 @@ jobs:
         uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-      - name: Approve Pull Request
-        run: gh pr review --approve "$PR_URL"
+      - name: Label safe update candidates
+        if: >-
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor') &&
+          steps.metadata.outputs.package-ecosystem == 'github-actions'
+        run: |
+          gh pr edit "$PR_URL" --add-label "dependencies"
+          gh pr comment "$PR_URL" --body "Dependabot update (GitHub Actions, patch/minor). Auto-approve is disabled; please review and merge manually after CI, CodeQL, and dependency review pass."
         env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-      - name: Enable Auto-Merge
-        run: gh pr merge --auto --squash "$PR_URL"
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Comment on non-eligible updates
+        if: >-
+          !((steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor') &&
+          steps.metadata.outputs.package-ecosystem == 'github-actions')
+        run: |
+          gh pr comment "$PR_URL" --body "Dependabot update requires manual review (auto-approve disabled). Ensure CI, CodeQL, and dependency review are green before merging."
         env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
