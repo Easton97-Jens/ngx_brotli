@@ -1,0 +1,57 @@
+name: CI Build
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        nginx_version:
+          - 1.24.0
+          - 1.27.0
+    env:
+      NGINX_VERSION: ${{ matrix.nginx_version }}
+      CC: gcc
+      CFLAGS: "-Wall -Wextra -Werror"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            ca-certificates \
+            curl \
+            libbrotli-dev \
+            libpcre2-dev \
+            libssl-dev \
+            pkg-config \
+            zlib1g-dev
+
+      - name: Download NGINX
+        run: |
+          curl -fsSLO "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"
+          tar -xzf "nginx-${NGINX_VERSION}.tar.gz"
+
+      - name: Configure NGINX with ngx_brotli
+        working-directory: nginx-${{ matrix.nginx_version }}
+        run: |
+          ./configure \
+            --with-compat \
+            --add-dynamic-module="${GITHUB_WORKSPACE}" \
+            --with-cc-opt="-Wall -Wextra -Werror"
+
+      - name: Build dynamic modules
+        working-directory: nginx-${{ matrix.nginx_version }}
+        run: |
+          make modules
