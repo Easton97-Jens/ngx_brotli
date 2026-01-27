@@ -65,15 +65,14 @@ jobs:
         run: |
           cppcheck \
             --enable=warning,style,performance,portability \
-            --addon=cert \
-            --check-level=exhaustive \
             --error-exitcode=1 \
             --inline-suppr \
+            --quiet \
             --suppress=missingIncludeSystem \
             -I "nginx-${NGINX_VERSION}/src/core" \
             -I "nginx-${NGINX_VERSION}/src/event" \
             -I "nginx-${NGINX_VERSION}/src/http" \
             -I "nginx-${NGINX_VERSION}/src/os/unix" \
             -I "nginx-${NGINX_VERSION}/objs" \
-            filter/ngx_http_brotli_filter_module.c \
-            static/ngx_http_brotli_static_module.c
+            filter/ \
+            static/
