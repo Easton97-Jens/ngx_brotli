@@ -92,25 +92,25 @@ jobs:
 
           # Checklist body
           BODY="${MARKER}
-### Dependabot update: ${ECO_TXT}
-**Update type:** \`${UTYPE}\`
+          ### Dependabot update: ${ECO_TXT}
+          **Update type:** \`${UTYPE}\`
 
-**Auto-approve:** disabled by policy (manual review required)
+          **Auto-approve:** disabled by policy (manual review required)
 
-#### Before merging, confirm:
-- [ ] CI is green
-- [ ] CodeQL is green (if enabled)
-- [ ] Dependency review is green (if enabled)
-- [ ] Changes look reasonable (no unexpected perms/URLs/scripts)
-"
+          #### Before merging, confirm:
+          - [ ] CI is green
+          - [ ] CodeQL is green (if enabled)
+          - [ ] Dependency review is green (if enabled)
+          - [ ] Changes look reasonable (no unexpected perms/URLs/scripts)
+          "
 
-          # Wenn eligible: Hinweis, dass es "low risk" ist
-          if [[ "$ELIGIBLE" == "true" ]]; then
-            BODY="${BODY}
-✅ This update matches the *low-risk* rule (GitHub Actions patch/minor). Label will be applied."
-          else
-            BODY="${BODY}
-⚠️ This update does **not** match the low-risk rule. Label will be removed (if present)."
+                    # Wenn eligible: Hinweis, dass es "low risk" ist
+                    if [[ "$ELIGIBLE" == "true" ]]; then
+                      BODY="${BODY}
+          ✅ This update matches the *low-risk* rule (GitHub Actions patch/minor). Label will be applied."
+                    else
+                      BODY="${BODY}
+          ⚠️ This update does **not** match the low-risk rule. Label will be removed (if present)."
           fi
 
           echo "eligible=${ELIGIBLE}" >> "$GITHUB_OUTPUT"
