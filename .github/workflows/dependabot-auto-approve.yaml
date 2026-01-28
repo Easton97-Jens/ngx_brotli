@@ -1,39 +1,178 @@
-name: Dependabot Auto-Approve
-on: pull_request
+name: Dependabot Manual Review Notice
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
+  pull-requests: write
   issues: write
-  pull-requests: read
 
 jobs:
-  auto-approve:
+  dependabot_notice:
     runs-on: ubuntu-latest
-    if: ${{ github.actor == 'dependabot[bot]' }}
+
+    # Nur Dependabot-PRs aus dem selben Repo
+    if: >
+      github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+
+    env:
+      LABEL: dependencies
+      MARKER: "<!-- dependabot-manual-review-notice -->"
+      # Toggle: auf "true" setzen, wenn du Auto-Approve für github-actions patch wirklich willst
+      ENABLE_AUTO_APPROVE_GHA_PATCH: "true"
+
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-      - name: Label safe update candidates
-        if: >-
-          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor') &&
-          steps.metadata.outputs.package-ecosystem == 'github-actions'
+
+      - name: Ensure label exists
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr edit "$PR_URL" --add-label "dependencies"
-          gh pr comment "$PR_URL" --body "Dependabot update (GitHub Actions, patch/minor). Auto-approve is disabled; please review and merge manually after CI, CodeQL, and dependency review pass."
+          set -euo pipefail
+          if ! gh api "repos/${GITHUB_REPOSITORY}/labels/${LABEL}" >/dev/null 2>&1; then
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/labels" \
+              -f name="${LABEL}" \
+              -f color="0366d6" \
+              -f description="Dependency updates"
+          fi
+
+      - name: Build message + eligibility
+        id: msg
+        run: |
+          set -euo pipefail
+
+          ECO="${{ steps.metadata.outputs.package-ecosystem }}"
+          UTYPE="${{ steps.metadata.outputs.update-type }}"
+
+          # Eligibility-Regel: nur github-actions patch/minor
+          if [[ "$ECO" == "github-actions" ]] && \
+             ([[ "$UTYPE" == "version-update:semver-patch" ]] || [[ "$UTYPE" == "version-update:semver-minor" ]]); then
+            ELIGIBLE="true"
+          else
+            ELIGIBLE="false"
+          fi
+
+          # Per-ecosystem Text
+          case "$ECO" in
+            github-actions)
+              ECO_TXT="GitHub Actions"
+              ;;
+            npm_and_yarn|npm)
+              ECO_TXT="Node.js (npm/yarn)"
+              ;;
+            pip|pipenv|poetry)
+              ECO_TXT="Python (pip/poetry/pipenv)"
+              ;;
+            maven|gradle)
+              ECO_TXT="Java (Maven/Gradle)"
+              ;;
+            gomod)
+              ECO_TXT="Go modules"
+              ;;
+            cargo)
+              ECO_TXT="Rust (cargo)"
+              ;;
+            composer)
+              ECO_TXT="PHP (composer)"
+              ;;
+            bundler)
+              ECO_TXT="Ruby (bundler)"
+              ;;
+            *)
+              ECO_TXT="$ECO"
+              ;;
+          esac
+
+          # Checklist body
+          BODY="${MARKER}
+### Dependabot update: ${ECO_TXT}
+**Update type:** \`${UTYPE}\`
+
+**Auto-approve:** disabled by policy (manual review required)
+
+#### Before merging, confirm:
+- [ ] CI is green
+- [ ] CodeQL is green (if enabled)
+- [ ] Dependency review is green (if enabled)
+- [ ] Changes look reasonable (no unexpected perms/URLs/scripts)
+"
+
+          # Wenn eligible: Hinweis, dass es "low risk" ist
+          if [[ "$ELIGIBLE" == "true" ]]; then
+            BODY="${BODY}
+✅ This update matches the *low-risk* rule (GitHub Actions patch/minor). Label will be applied."
+          else
+            BODY="${BODY}
+⚠️ This update does **not** match the low-risk rule. Label will be removed (if present)."
+          fi
+
+          echo "eligible=${ELIGIBLE}" >> "$GITHUB_OUTPUT"
+          echo "ecosystem=${ECO}" >> "$GITHUB_OUTPUT"
+          echo "update_type=${UTYPE}" >> "$GITHUB_OUTPUT"
+
+          echo "body<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$BODY" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Sync dependency label
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Comment on non-eligible updates
-        if: >-
-          !((steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor') &&
-          steps.metadata.outputs.package-ecosystem == 'github-actions')
+          ELIGIBLE: ${{ steps.msg.outputs.eligible }}
         run: |
-          gh pr comment "$PR_URL" --body "Dependabot update requires manual review (auto-approve disabled). Ensure CI, CodeQL, and dependency review are green before merging."
+          set -euo pipefail
+          if [[ "$ELIGIBLE" == "true" ]]; then
+            gh pr edit "$PR_URL" --add-label "$LABEL"
+          else
+            gh pr edit "$PR_URL" --remove-label "$LABEL" || true
+          fi
+
+      # Kommentar nur bei opened & synchronize
+      - name: Create or update notice comment (opened/synchronize only)
+        if: >
+          github.event.action == 'opened' ||
+          github.event.action == 'synchronize'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: ${{ steps.msg.outputs.body }}
+        run: |
+          set -euo pipefail
+
+          EXISTING_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq '[.[] | select(.body | contains("'"$MARKER"'"))][0] // empty')"
+
+          if [[ -z "$EXISTING_JSON" ]]; then
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$BODY"
+            exit 0
+          fi
+
+          COMMENT_ID="$(echo "$EXISTING_JSON" | gh api --input - --jq '.id')"
+          EXISTING_BODY="$(echo "$EXISTING_JSON" | gh api --input - --jq '.body')"
+
+          if [[ "$EXISTING_BODY" == "$BODY" ]]; then
+            echo "Notice unchanged, skipping update."
+            exit 0
+          fi
+
+          gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" -f body="$BODY"
+
+      # Optional: Auto-Approve nur für GitHub Actions PATCH (nicht minor)
+      - name: Auto-approve (GitHub Actions patch only) - optional
+        if: >
+          env.ENABLE_AUTO_APPROVE_GHA_PATCH == 'true' &&
+          steps.msg.outputs.ecosystem == 'github-actions' &&
+          steps.msg.outputs.update_type == 'version-update:semver-patch'
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh pr review "$PR_URL" --approve --body "Auto-approved: GitHub Actions semver-patch (policy)."
