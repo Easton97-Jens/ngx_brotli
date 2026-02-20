@@ -1,8 +1,6 @@
 name: Dependabot Manual Review Notice
 
-on:
-  pull_request_target:
-    types: [opened, synchronize, reopened]
+on: pull_request
 
 permissions:
   contents: read
