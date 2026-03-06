@@ -33,7 +33,7 @@ jobs:
         with:
           sarif_file: scorecard.sarif
       - name: Upload Scorecard artifact
-        uses: actions/upload-artifact@v6 # v4.4.3
+        uses: actions/upload-artifact@v7 # v4.4.3
         with:
           name: scorecard-sarif
           path: scorecard.sarif
