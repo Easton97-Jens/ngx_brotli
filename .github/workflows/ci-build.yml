@@ -5,16 +5,23 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    name: Dynamic modules nginx ${{ matrix.nginx_version }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-24.04, ubuntu-26.04]
         nginx_version:
-          - 1.24.0
-          - 1.27.0
+          - "1.28.3"
+          - "1.30.6"
+          - "1.31.8"
     env:
       NGINX_VERSION: ${{ matrix.nginx_version }}
       CC: gcc
