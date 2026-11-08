@@ -6,6 +6,7 @@ on:
       - master
   pull_request:
     types: [opened, reopened, labeled, synchronize]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,61 +17,70 @@ concurrency:
 
 jobs:
   ubuntu_build:
-    name: Build and test ${{ matrix.name }}
-    runs-on: ${{ matrix.os || 'ubuntu-latest' }}
+    name: Build and test nginx ${{ matrix.nginx_version }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
-      matrix: 
-        include:
-        #  - name: cmake:gcc9:ubuntu.22.04
-        #    build_system: cmake
-         #   c_compiler: gcc-9
-        #    cxx_compiler: g++-9
-        #    os: ubuntu-22.04
-            
-       #   - name: cmake:gcc10:ubuntu.22.04
-        #    build_system: cmake
-          #  c_compiler: gcc-10
-        #    cxx_compiler: g++-10
-          #  os: ubuntu-22.04
-            
-         # - name: cmake:gcc11:ubuntu.22.04
-         #   build_system: cmake
-          #  c_compiler: gcc-11
-         #   cxx_compiler: g++-11
-          #  os: ubuntu-22.04
-            
-         # - name: cmake:gcc12:ubuntu.22.04
-           # build_system: cmake
-         #   c_compiler: gcc-12
-          #  cxx_compiler: g++-12
-           # extra_apt_pkgs: gcc-12 g++-12
-          #  os: ubuntu-22.04
-
-          - name: cmake:gcc14:ubuntu.24.04
-            build_system: cmake
-            c_compiler: gcc-14
-            cxx_compiler: g++-14
-            extra_apt_pkgs: gcc-14 g++-14 libbrotli-dev
-            os: ubuntu-24.04
-            
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-26.04]
+        # Latest releases from the legacy, stable, and mainline branches.
+        nginx_version: ["1.28.3", "1.30.6", "1.31.8"]
     env:
-      CC: ${{ matrix.c_compiler || 'gcc' }}
-      CXX: ${{ matrix.cxx_compiler || 'gcc' }}
+      CC: gcc
+      CXX: g++
+      NGINX_VERSION: ${{ matrix.nginx_version }}
     steps:
-    - name: Install extra deps @ Ubuntu
-      if: ${{ runner.os == 'Linux' }}
-      run: |
-        EXTRA_PACKAGES="${{ matrix.extra_apt_pkgs || '' }}"
-        sudo apt update
-        sudo apt install -y ${EXTRA_PACKAGES} ca-certificates build-essential patch git libtool autoconf automake perl bash libldap2-dev libsasl2-dev libzstd-dev libatomic-ops-dev zlib1g-dev libluajit-5.1-dev libpcre2-dev libyajl-dev libxml2-dev libxslt1-dev libcurl4-openssl-dev liblmdb-dev libfuzzy-dev lua5.1 lua5.3 liblua5.3-dev libgeoip-dev libmaxminddb-dev python3 libcjson-dev uthash-dev libgd-dev apt-utils pkgconf doxygen wget libgd-dev valgrind libc-ares-dev libperl-dev flex bison libsodium23 libsodium-dev clang lld 
-    - name: Checkout the source
-      uses: actions/checkout@v7
-      with:
-        submodules: true
-        fetch-depth: 1
-    - name: Run compile script
-      run: script/.actions-compile.sh
-    - name: Run before test script
-      run: script/.actions-before-test.sh
-    - name: Test script
-      run: script/.actions-test.sh
+      - name: Checkout the source
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      # Match ModSecurity's ci_new.yml: choose the newest Lua in this Ubuntu release.
+      - name: Detect latest Lua dev package
+        id: detect_lua
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          CANDIDATES="$(apt-cache pkgnames | grep -E '^liblua[0-9]+\.[0-9]+-dev$' || true)"
+          if [ -z "$CANDIDATES" ]; then
+            echo "No libluaX.Y-dev package found" >&2
+            exit 1
+          fi
+          BEST_PKG="$(
+            printf '%s\n' "$CANDIDATES" \
+              | sed -E 's/^liblua([0-9]+\.[0-9]+)-dev$/\1 &/' \
+              | sort -V \
+              | tail -n1 \
+              | awk '{print $2}'
+          )"
+          if [ -z "$BEST_PKG" ]; then
+            echo "Failed to determine Lua package" >&2
+            exit 1
+          fi
+          echo "lua_pkg=$BEST_PKG" >> "$GITHUB_OUTPUT"
+          echo "Using $BEST_PKG"
+
+      - name: Install build and test dependencies
+        env:
+          LUA_DEV_PACKAGE: ${{ steps.detect_lua.outputs.lua_pkg }}
+        run: |
+          LUA_PACKAGE="${LUA_DEV_PACKAGE#lib}"
+          LUA_PACKAGE="${LUA_PACKAGE%-dev}"
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ca-certificates cmake curl git \
+            libatomic-ops-dev libbrotli-dev libgd-dev libgeoip-dev \
+            libpcre2-dev libssl-dev libxslt1-dev lld pkg-config zlib1g-dev \
+            "$LUA_DEV_PACKAGE" "$LUA_PACKAGE"
+
+      - name: Checkout selected nginx release
+        run: |
+          git clone --depth 1 --branch "release-${NGINX_VERSION}" \
+            https://github.com/nginx/nginx.git nginx
+
+      - name: Run compile script
+        run: script/.actions-compile.sh
+      - name: Run before test script
+        run: script/.actions-before-test.sh
+      - name: Test script
+        run: script/.actions-test.sh

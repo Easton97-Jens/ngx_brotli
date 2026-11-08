@@ -7,6 +7,7 @@ on:
     branches: ["master", "main"]
   schedule:
     - cron: "19 3 * * 1"
+  workflow_dispatch:
 
 permissions:
   actions: read
@@ -19,8 +20,14 @@ concurrency:
 
 jobs:
   analyze:
-    name: CodeQL (C/C++)
-    runs-on: ubuntu-latest
+    name: CodeQL C/C++ (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-26.04]
+    env:
+      NGINX_VERSION: "1.31.8"
 
     steps:
       - name: Checkout (with submodules)
@@ -39,7 +46,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential cmake perl \
-            zlib1g-dev libpcre3-dev libssl-dev \
+            zlib1g-dev libpcre2-dev libssl-dev \
             curl ca-certificates
 
       - name: Build brotli deps (from submodule)
@@ -47,12 +54,11 @@ jobs:
           cd deps/brotli
           mkdir -p out && cd out
           cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+                -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
                 -DCMAKE_INSTALL_PREFIX="$PWD/installed" ..
           cmake --build . --config Release --target brotlienc
 
-      - name: Download and build nginx 1.29.4 with ngx_brotli (dynamic module)
-        env:
-          NGINX_VERSION: "1.29.4"
+      - name: Download and build selected nginx with ngx_brotli (dynamic module)
         run: |
           curl -fsSL "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" -o nginx.tar.gz
           tar -xzf nginx.tar.gz
@@ -63,3 +69,5 @@ jobs:
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4.39.2
+        with:
+          category: /language:c-cpp/os:${{ matrix.os }}
